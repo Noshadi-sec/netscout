@@ -60,3 +60,61 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
             return banner if banner else None
     except Exception:
         return None
+
+
+def scan_udp_port(host: str, port: int, timeout: float = 2.0) -> bool:
+    """Return True if the given UDP port is open or responds on host."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(b"", (host, port))
+            try:
+                sock.recvfrom(1024)
+                return True
+            except socket.timeout:
+                # Timeout may indicate filtered or open port
+                return False
+    except (OSError, socket.error):
+        return False
+
+
+def scan_udp_range(
+    host: str,
+    start: int,
+    end: int,
+    timeout: float = 2.0,
+) -> list[int]:
+    """Scan a range of UDP ports and return responsive ones."""
+    open_ports = []
+    for port in range(start, end + 1):
+        if scan_udp_port(host, port, timeout):
+            open_ports.append(port)
+    return open_ports
+
+
+def scan_udp_range_concurrent(
+    host: str,
+    start: int,
+    end: int,
+    timeout: float = 2.0,
+    max_workers: int = 10,
+) -> list[int]:
+    """Scan a range of UDP ports concurrently using ThreadPoolExecutor."""
+    open_ports = []
+    ports = range(start, end + 1)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(scan_udp_port, host, port, timeout): port
+            for port in ports
+        }
+
+        for future in as_completed(futures):
+            port = futures[future]
+            try:
+                if future.result():
+                    open_ports.append(port)
+            except Exception:
+                pass
+
+    return sorted(open_ports)

@@ -2,7 +2,12 @@
 
 import argparse
 import sys
-from netscout.scanner import scan_port, scan_range_concurrent
+from netscout.scanner import (
+    scan_port,
+    scan_range_concurrent,
+    scan_udp_port,
+    scan_udp_range_concurrent,
+)
 from netscout.resolver import resolve, reverse_lookup, resolve_all
 from netscout.utils import port_to_service, is_valid_ip
 
@@ -34,6 +39,12 @@ def main():
         type=int,
         default=10,
         help="Number of concurrent workers (default: 10)",
+    )
+    scan_parser.add_argument(
+        "--protocol",
+        choices=["tcp", "udp"],
+        default="tcp",
+        help="Protocol to scan (default: tcp)",
     )
 
     # Resolve subcommand
@@ -95,22 +106,33 @@ def _handle_scan(args):
             print(f"Error: Invalid port specification {args.ports}", file=sys.stderr)
             sys.exit(1)
 
-    print(f"Scanning {host} ports {start}-{end}...")
-    open_ports = scan_range_concurrent(
-        host,
-        start,
-        end,
-        timeout=args.timeout,
-        max_workers=args.workers,
-    )
+    protocol = getattr(args, "protocol", "tcp")
+    print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
+
+    if protocol == "udp":
+        open_ports = scan_udp_range_concurrent(
+            host,
+            start,
+            end,
+            timeout=args.timeout,
+            max_workers=args.workers,
+        )
+    else:
+        open_ports = scan_range_concurrent(
+            host,
+            start,
+            end,
+            timeout=args.timeout,
+            max_workers=args.workers,
+        )
 
     if open_ports:
-        print(f"\nOpen ports on {host}:")
+        print(f"\nOpen {protocol.upper()} ports on {host}:")
         for port in open_ports:
             service = port_to_service(port)
             print(f"  {port:5d} - {service}")
     else:
-        print(f"No open ports found on {host} in range {start}-{end}")
+        print(f"No open {protocol.upper()} ports found on {host} in range {start}-{end}")
 
 
 def _handle_resolve(args):
