@@ -1,0 +1,4 @@
+# No external dependencies required for core functionality
+# Optional: install for enhanced features
+# tqdm>=4.0.0       # progress bars
+# rich>=13.0.0      # pretty output
