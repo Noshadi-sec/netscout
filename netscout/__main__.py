@@ -59,6 +59,11 @@ def main():
         action="store_true",
         help="Attempt to grab service banners from open ports (TCP only)",
     )
+    scan_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress progress bars",
+    )
 
     # Resolve subcommand
     resolve_parser = subparsers.add_parser("resolve", help="Resolve hostname to IP")
@@ -123,8 +128,10 @@ def _handle_scan(args):
     protocol = getattr(args, "protocol", "tcp")
     output_format = getattr(args, "output", "text")
     grab_banners = getattr(args, "banners", False)
+    quiet = getattr(args, "quiet", False)
+    show_progress = output_format == "text" and not quiet
     
-    if output_format == "text":
+    if output_format == "text" and not quiet:
         print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
 
     if protocol == "udp":
@@ -134,6 +141,7 @@ def _handle_scan(args):
             end,
             timeout=args.timeout,
             max_workers=args.workers,
+            show_progress=show_progress,
         )
         banners_dict = {}
     else:
@@ -143,16 +151,16 @@ def _handle_scan(args):
             end,
             timeout=args.timeout,
             max_workers=args.workers,
+            show_progress=show_progress,
         )
         # Grab banners if requested and protocol is TCP
         if grab_banners and open_ports:
-            if output_format == "text":
-                print("Grabbing service banners...")
             banners_dict = grab_banner_concurrent(
                 host,
                 open_ports,
                 timeout=args.timeout,
                 max_workers=args.workers,
+                show_progress=show_progress,
             )
         else:
             banners_dict = {}

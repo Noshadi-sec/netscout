@@ -4,7 +4,7 @@ Task 3: Add ICMP ping / host discovery
 Task 4: [DONE] Build CLI interface using argparse (python -m netscout)
 Task 5: [DONE] Add JSON and CSV output formats for scan results
 Task 6: [DONE] Implement service version detection from banners
-Task 7: Add scan progress bar with tqdm
+Task 7: [DONE] Add scan progress bar with tqdm
 Task 8: [DONE] Write unit tests for scanner module
 Task 9: Add rate limiting / throttle option to avoid detection
 Task 10: Implement OS fingerprinting based on TTL values

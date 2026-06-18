@@ -4,6 +4,12 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
+try:
+    from tqdm import tqdm
+    HAS_TQDM = True
+except ImportError:
+    HAS_TQDM = False
+
 
 def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if the given TCP port is open on host."""
@@ -29,10 +35,11 @@ def scan_range_concurrent(
     end: int,
     timeout: float = 1.0,
     max_workers: int = 10,
+    show_progress: bool = True,
 ) -> list[int]:
     """Scan a range of ports concurrently using ThreadPoolExecutor."""
     open_ports = []
-    ports = range(start, end + 1)
+    ports = list(range(start, end + 1))
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
@@ -40,7 +47,18 @@ def scan_range_concurrent(
             for port in ports
         }
 
-        for future in as_completed(futures):
+        iterator = futures
+        if HAS_TQDM and show_progress:
+            iterator = tqdm(
+                as_completed(futures),
+                total=len(futures),
+                desc="Scanning TCP ports",
+                unit="port",
+            )
+        else:
+            iterator = as_completed(futures)
+
+        for future in iterator:
             port = futures[future]
             try:
                 if future.result():
@@ -67,9 +85,13 @@ def grab_banner_concurrent(
     ports: list[int],
     timeout: float = 2.0,
     max_workers: int = 10,
+    show_progress: bool = True,
 ) -> dict[int, Optional[str]]:
     """Grab banners from multiple ports concurrently."""
     banners = {}
+
+    if not ports:
+        return banners
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
@@ -77,7 +99,18 @@ def grab_banner_concurrent(
             for port in ports
         }
 
-        for future in as_completed(futures):
+        iterator = futures
+        if HAS_TQDM and show_progress:
+            iterator = tqdm(
+                as_completed(futures),
+                total=len(futures),
+                desc="Grabbing banners",
+                unit="port",
+            )
+        else:
+            iterator = as_completed(futures)
+
+        for future in iterator:
             port = futures[future]
             try:
                 banner = future.result()
@@ -125,10 +158,11 @@ def scan_udp_range_concurrent(
     end: int,
     timeout: float = 2.0,
     max_workers: int = 10,
+    show_progress: bool = True,
 ) -> list[int]:
     """Scan a range of UDP ports concurrently using ThreadPoolExecutor."""
     open_ports = []
-    ports = range(start, end + 1)
+    ports = list(range(start, end + 1))
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
@@ -136,7 +170,18 @@ def scan_udp_range_concurrent(
             for port in ports
         }
 
-        for future in as_completed(futures):
+        iterator = futures
+        if HAS_TQDM and show_progress:
+            iterator = tqdm(
+                as_completed(futures),
+                total=len(futures),
+                desc="Scanning UDP ports",
+                unit="port",
+            )
+        else:
+            iterator = as_completed(futures)
+
+        for future in iterator:
             port = futures[future]
             try:
                 if future.result():
