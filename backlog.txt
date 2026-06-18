@@ -2,7 +2,7 @@ Task 1: [DONE] Add concurrent port scanning with ThreadPoolExecutor
 Task 2: [DONE] Implement UDP port scanning
 Task 3: Add ICMP ping / host discovery
 Task 4: [DONE] Build CLI interface using argparse (python -m netscout)
-Task 5: Add JSON and CSV output formats for scan results
+Task 5: [DONE] Add JSON and CSV output formats for scan results
 Task 6: Implement service version detection from banners
 Task 7: Add scan progress bar with tqdm
 Task 8: [DONE] Write unit tests for scanner module

@@ -58,5 +58,29 @@ class TestScanner(unittest.TestCase):
         self.assertEqual(result, sorted(result))
 
 
+class TestScanOutput(unittest.TestCase):
+
+    def test_json_output_format(self):
+        """Test that JSON output can be generated from scan results."""
+        import json
+        result = scan_range_concurrent("localhost", 1, 50, timeout=0.5, max_workers=5)
+        output = {
+            "host": "127.0.0.1",
+            "protocol": "tcp",
+            "ports_scanned": "1-50",
+            "open_ports": [
+                {"port": port, "service": "unknown"}
+                for port in result
+            ]
+        }
+        # Ensure it's JSON serializable
+        json_str = json.dumps(output)
+        self.assertIsInstance(json_str, str)
+        # Ensure it deserializes correctly
+        parsed = json.loads(json_str)
+        self.assertEqual(parsed["host"], "127.0.0.1")
+        self.assertEqual(parsed["protocol"], "tcp")
+
+
 if __name__ == "__main__":
     unittest.main()

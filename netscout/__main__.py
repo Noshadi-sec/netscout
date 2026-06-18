@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import json
 from netscout.scanner import (
     scan_port,
     scan_range_concurrent,
@@ -46,6 +47,12 @@ def main():
         default="tcp",
         help="Protocol to scan (default: tcp)",
     )
+    scan_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
 
     # Resolve subcommand
     resolve_parser = subparsers.add_parser("resolve", help="Resolve hostname to IP")
@@ -84,7 +91,8 @@ def _handle_scan(args):
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
         host = resolved
-        print(f"Resolved {args.host} to {host}")
+        if getattr(args, "output", "text") == "text":
+            print(f"Resolved {args.host} to {host}")
 
     # Parse port specification
     if "-" in args.ports:
@@ -107,7 +115,10 @@ def _handle_scan(args):
             sys.exit(1)
 
     protocol = getattr(args, "protocol", "tcp")
-    print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
+    output_format = getattr(args, "output", "text")
+    
+    if output_format == "text":
+        print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
 
     if protocol == "udp":
         open_ports = scan_udp_range_concurrent(
@@ -126,13 +137,28 @@ def _handle_scan(args):
             max_workers=args.workers,
         )
 
-    if open_ports:
-        print(f"\nOpen {protocol.upper()} ports on {host}:")
-        for port in open_ports:
-            service = port_to_service(port)
-            print(f"  {port:5d} - {service}")
+    if output_format == "json":
+        result = {
+            "host": host,
+            "protocol": protocol,
+            "ports_scanned": f"{start}-{end}",
+            "open_ports": [
+                {
+                    "port": port,
+                    "service": port_to_service(port)
+                }
+                for port in open_ports
+            ]
+        }
+        print(json.dumps(result, indent=2))
     else:
-        print(f"No open {protocol.upper()} ports found on {host} in range {start}-{end}")
+        if open_ports:
+            print(f"\nOpen {protocol.upper()} ports on {host}:")
+            for port in open_ports:
+                service = port_to_service(port)
+                print(f"  {port:5d} - {service}")
+        else:
+            print(f"No open {protocol.upper()} ports found on {host} in range {start}-{end}")
 
 
 def _handle_resolve(args):
