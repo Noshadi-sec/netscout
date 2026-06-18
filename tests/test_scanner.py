@@ -5,6 +5,8 @@ from netscout.scanner import (
     scan_port,
     scan_range,
     scan_range_concurrent,
+    grab_banner,
+    grab_banner_concurrent,
     scan_udp_port,
     scan_udp_range,
     scan_udp_range_concurrent,
@@ -41,6 +43,27 @@ class TestScanner(unittest.TestCase):
         result = scan_range_concurrent("localhost", 1, 50, timeout=0.5, max_workers=1)
         self.assertIsInstance(result, list)
 
+    def test_grab_banner_returns_optional_string(self):
+        """Test grab_banner returns None or a string."""
+        result = grab_banner("localhost", 80, timeout=1.0)
+        self.assertIsInstance(result, (str, type(None)))
+
+    def test_grab_banner_concurrent_returns_dict(self):
+        """Test grab_banner_concurrent returns a dictionary."""
+        result = grab_banner_concurrent("localhost", [80, 443], timeout=1.0, max_workers=2)
+        self.assertIsInstance(result, dict)
+        # All keys should be integers
+        for key in result.keys():
+            self.assertIsInstance(key, int)
+        # All values should be strings
+        for value in result.values():
+            self.assertIsInstance(value, str)
+
+    def test_grab_banner_concurrent_empty_ports(self):
+        """Test grab_banner_concurrent with empty port list."""
+        result = grab_banner_concurrent("localhost", [], timeout=1.0, max_workers=2)
+        self.assertEqual(result, {})
+
     def test_scan_udp_port_returns_bool(self):
         """Test scan_udp_port returns a boolean."""
         result = scan_udp_port("localhost", 53, timeout=1.0)
@@ -69,7 +92,7 @@ class TestScanOutput(unittest.TestCase):
             "protocol": "tcp",
             "ports_scanned": "1-50",
             "open_ports": [
-                {"port": port, "service": "unknown"}
+                {"port": port, "service": "unknown", "banner": None}
                 for port in result
             ]
         }
@@ -80,6 +103,25 @@ class TestScanOutput(unittest.TestCase):
         parsed = json.loads(json_str)
         self.assertEqual(parsed["host"], "127.0.0.1")
         self.assertEqual(parsed["protocol"], "tcp")
+
+    def test_json_output_with_banners(self):
+        """Test JSON output includes banner data when present."""
+        import json
+        output = {
+            "host": "127.0.0.1",
+            "protocol": "tcp",
+            "ports_scanned": "80-80",
+            "open_ports": [
+                {
+                    "port": 80,
+                    "service": "HTTP",
+                    "banner": "HTTP/1.1 200 OK"
+                }
+            ]
+        }
+        json_str = json.dumps(output)
+        parsed = json.loads(json_str)
+        self.assertEqual(parsed["open_ports"][0]["banner"], "HTTP/1.1 200 OK")
 
 
 if __name__ == "__main__":

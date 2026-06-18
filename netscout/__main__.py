@@ -8,6 +8,7 @@ from netscout.scanner import (
     scan_range_concurrent,
     scan_udp_port,
     scan_udp_range_concurrent,
+    grab_banner_concurrent,
 )
 from netscout.resolver import resolve, reverse_lookup, resolve_all
 from netscout.utils import port_to_service, is_valid_ip
@@ -52,6 +53,11 @@ def main():
         choices=["text", "json"],
         default="text",
         help="Output format (default: text)",
+    )
+    scan_parser.add_argument(
+        "--banners",
+        action="store_true",
+        help="Attempt to grab service banners from open ports (TCP only)",
     )
 
     # Resolve subcommand
@@ -116,6 +122,7 @@ def _handle_scan(args):
 
     protocol = getattr(args, "protocol", "tcp")
     output_format = getattr(args, "output", "text")
+    grab_banners = getattr(args, "banners", False)
     
     if output_format == "text":
         print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
@@ -128,6 +135,7 @@ def _handle_scan(args):
             timeout=args.timeout,
             max_workers=args.workers,
         )
+        banners_dict = {}
     else:
         open_ports = scan_range_concurrent(
             host,
@@ -136,6 +144,18 @@ def _handle_scan(args):
             timeout=args.timeout,
             max_workers=args.workers,
         )
+        # Grab banners if requested and protocol is TCP
+        if grab_banners and open_ports:
+            if output_format == "text":
+                print("Grabbing service banners...")
+            banners_dict = grab_banner_concurrent(
+                host,
+                open_ports,
+                timeout=args.timeout,
+                max_workers=args.workers,
+            )
+        else:
+            banners_dict = {}
 
     if output_format == "json":
         result = {
@@ -145,7 +165,8 @@ def _handle_scan(args):
             "open_ports": [
                 {
                     "port": port,
-                    "service": port_to_service(port)
+                    "service": port_to_service(port),
+                    "banner": banners_dict.get(port) if banners_dict else None
                 }
                 for port in open_ports
             ]
@@ -156,7 +177,11 @@ def _handle_scan(args):
             print(f"\nOpen {protocol.upper()} ports on {host}:")
             for port in open_ports:
                 service = port_to_service(port)
-                print(f"  {port:5d} - {service}")
+                if banners_dict and port in banners_dict:
+                    print(f"  {port:5d} - {service}")
+                    print(f"           Banner: {banners_dict[port][:60]}...")
+                else:
+                    print(f"  {port:5d} - {service}")
         else:
             print(f"No open {protocol.upper()} ports found on {host} in range {start}-{end}")
 

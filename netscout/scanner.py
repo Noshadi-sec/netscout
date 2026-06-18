@@ -62,6 +62,33 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
         return None
 
 
+def grab_banner_concurrent(
+    host: str,
+    ports: list[int],
+    timeout: float = 2.0,
+    max_workers: int = 10,
+) -> dict[int, Optional[str]]:
+    """Grab banners from multiple ports concurrently."""
+    banners = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(grab_banner, host, port, timeout): port
+            for port in ports
+        }
+
+        for future in as_completed(futures):
+            port = futures[future]
+            try:
+                banner = future.result()
+                if banner:
+                    banners[port] = banner
+            except Exception:
+                pass
+
+    return banners
+
+
 def scan_udp_port(host: str, port: int, timeout: float = 2.0) -> bool:
     """Return True if the given UDP port is open or responds on host."""
     try:
