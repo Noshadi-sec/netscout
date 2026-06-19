@@ -43,6 +43,12 @@ def main():
         help="Number of concurrent workers (default: 10)",
     )
     scan_parser.add_argument(
+        "--rate-limit",
+        type=float,
+        default=0.0,
+        help="Delay in seconds between port scans to avoid detection (default: 0.0)",
+    )
+    scan_parser.add_argument(
         "--protocol",
         choices=["tcp", "udp"],
         default="tcp",
@@ -129,6 +135,7 @@ def _handle_scan(args):
     output_format = getattr(args, "output", "text")
     grab_banners = getattr(args, "banners", False)
     quiet = getattr(args, "quiet", False)
+    rate_limit = getattr(args, "rate_limit", 0.0)
     show_progress = output_format == "text" and not quiet
     
     if output_format == "text" and not quiet:
@@ -142,6 +149,7 @@ def _handle_scan(args):
             timeout=args.timeout,
             max_workers=args.workers,
             show_progress=show_progress,
+            rate_limit=rate_limit,
         )
         banners_dict = {}
     else:
@@ -152,6 +160,7 @@ def _handle_scan(args):
             timeout=args.timeout,
             max_workers=args.workers,
             show_progress=show_progress,
+            rate_limit=rate_limit,
         )
         # Grab banners if requested and protocol is TCP
         if grab_banners and open_ports:
@@ -161,6 +170,7 @@ def _handle_scan(args):
                 timeout=args.timeout,
                 max_workers=args.workers,
                 show_progress=show_progress,
+                rate_limit=rate_limit,
             )
         else:
             banners_dict = {}

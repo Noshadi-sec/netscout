@@ -1,6 +1,7 @@
 """TCP port scanning utilities."""
 
 import socket
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
@@ -36,16 +37,32 @@ def scan_range_concurrent(
     timeout: float = 1.0,
     max_workers: int = 10,
     show_progress: bool = True,
+    rate_limit: float = 0.0,
 ) -> list[int]:
-    """Scan a range of ports concurrently using ThreadPoolExecutor."""
+    """Scan a range of ports concurrently using ThreadPoolExecutor.
+    
+    Args:
+        host: Target hostname or IP address
+        start: Starting port number
+        end: Ending port number (inclusive)
+        timeout: Connection timeout in seconds
+        max_workers: Number of concurrent workers
+        show_progress: Whether to show progress bar
+        rate_limit: Delay in seconds between port scans (0.0 = no limit)
+    
+    Returns:
+        Sorted list of open ports
+    """
     open_ports = []
     ports = list(range(start, end + 1))
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(scan_port, host, port, timeout): port
-            for port in ports
-        }
+        futures = {}
+        for port in ports:
+            future = executor.submit(scan_port, host, port, timeout)
+            futures[future] = port
+            if rate_limit > 0:
+                time.sleep(rate_limit)
 
         iterator = futures
         if HAS_TQDM and show_progress:
@@ -86,18 +103,33 @@ def grab_banner_concurrent(
     timeout: float = 2.0,
     max_workers: int = 10,
     show_progress: bool = True,
+    rate_limit: float = 0.0,
 ) -> dict[int, Optional[str]]:
-    """Grab banners from multiple ports concurrently."""
+    """Grab banners from multiple ports concurrently.
+    
+    Args:
+        host: Target hostname or IP address
+        ports: List of ports to grab banners from
+        timeout: Connection timeout in seconds
+        max_workers: Number of concurrent workers
+        show_progress: Whether to show progress bar
+        rate_limit: Delay in seconds between banner grabs (0.0 = no limit)
+    
+    Returns:
+        Dictionary mapping port numbers to banner strings
+    """
     banners = {}
 
     if not ports:
         return banners
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(grab_banner, host, port, timeout): port
-            for port in ports
-        }
+        futures = {}
+        for port in ports:
+            future = executor.submit(grab_banner, host, port, timeout)
+            futures[future] = port
+            if rate_limit > 0:
+                time.sleep(rate_limit)
 
         iterator = futures
         if HAS_TQDM and show_progress:
@@ -159,16 +191,32 @@ def scan_udp_range_concurrent(
     timeout: float = 2.0,
     max_workers: int = 10,
     show_progress: bool = True,
+    rate_limit: float = 0.0,
 ) -> list[int]:
-    """Scan a range of UDP ports concurrently using ThreadPoolExecutor."""
+    """Scan a range of UDP ports concurrently using ThreadPoolExecutor.
+    
+    Args:
+        host: Target hostname or IP address
+        start: Starting port number
+        end: Ending port number (inclusive)
+        timeout: Connection timeout in seconds
+        max_workers: Number of concurrent workers
+        show_progress: Whether to show progress bar
+        rate_limit: Delay in seconds between port scans (0.0 = no limit)
+    
+    Returns:
+        Sorted list of responsive ports
+    """
     open_ports = []
     ports = list(range(start, end + 1))
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(scan_udp_port, host, port, timeout): port
-            for port in ports
-        }
+        futures = {}
+        for port in ports:
+            future = executor.submit(scan_udp_port, host, port, timeout)
+            futures[future] = port
+            if rate_limit > 0:
+                time.sleep(rate_limit)
 
         iterator = futures
         if HAS_TQDM and show_progress:
