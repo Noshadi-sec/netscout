@@ -9,6 +9,8 @@ from netscout.scanner import (
     scan_udp_port,
     scan_udp_range_concurrent,
     grab_banner_concurrent,
+    get_ttl,
+    fingerprint_os,
 )
 from netscout.resolver import resolve, reverse_lookup, resolve_all
 from netscout.utils import port_to_service, is_valid_ip
@@ -84,6 +86,22 @@ def main():
     reverse_parser = subparsers.add_parser("reverse", help="Reverse DNS lookup")
     reverse_parser.add_argument("ip", help="IP address to look up")
 
+    # Fingerprint subcommand
+    fingerprint_parser = subparsers.add_parser(
+        "fingerprint",
+        help="Fingerprint OS based on TTL value",
+    )
+    fingerprint_parser.add_argument(
+        "host",
+        help="Target hostname or IP address",
+    )
+    fingerprint_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=2.0,
+        help="ICMP timeout in seconds (default: 2.0)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "scan":
@@ -92,6 +110,8 @@ def main():
         _handle_resolve(args)
     elif args.command == "reverse":
         _handle_reverse(args)
+    elif args.command == "fingerprint":
+        _handle_fingerprint(args)
     else:
         parser.print_help()
         sys.exit(1)
@@ -239,6 +259,35 @@ def _handle_reverse(args):
         print(f"{ip} -> {hostname}")
     else:
         print(f"No reverse DNS record found for {ip}")
+
+
+def _handle_fingerprint(args):
+    """Handle the fingerprint subcommand."""
+    host = args.host
+
+    # Validate host
+    if not is_valid_ip(host):
+        resolved = resolve(host)
+        if not resolved:
+            print(f"Error: Could not resolve {host}", file=sys.stderr)
+            sys.exit(1)
+        host = resolved
+        print(f"Resolved {args.host} to {host}")
+
+    print(f"Attempting OS fingerprinting for {host}...")
+    ttl = get_ttl(host, timeout=args.timeout)
+
+    if ttl is not None:
+        os_guess = fingerprint_os(ttl)
+        print(f"TTL: {ttl}")
+        print(f"Estimated OS: {os_guess}")
+    else:
+        print(
+            f"Error: Could not retrieve TTL from {host}",
+            "(requires root/admin or ICMP may be filtered)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":

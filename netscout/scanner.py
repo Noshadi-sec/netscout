@@ -238,3 +238,50 @@ def scan_udp_range_concurrent(
                 pass
 
     return sorted(open_ports)
+
+
+def get_ttl(host: str, timeout: float = 2.0) -> Optional[int]:
+    """Get the TTL value from ICMP echo response.
+    
+    Args:
+        host: Target hostname or IP address
+        timeout: Timeout in seconds
+    
+    Returns:
+        TTL value if reachable, None otherwise
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, 64)
+            sock.settimeout(timeout)
+            sock.sendto(b"\x08\x00\x00\x00\x00\x00\x00\x00", (host, 0))
+            data, _ = sock.recvfrom(1024)
+            # Extract TTL from IP header (field at offset 8, 1 byte)
+            ttl = data[8]
+            return ttl
+    except (OSError, socket.error, PermissionError):
+        return None
+
+
+def fingerprint_os(ttl: int) -> str:
+    """Guess the operating system based on TTL value.
+    
+    Common defaults:
+    - Windows: 128
+    - Linux/Unix: 64
+    - Cisco/Network devices: 255
+    
+    Args:
+        ttl: TTL value from ping response
+    
+    Returns:
+        Estimated OS name
+    """
+    if ttl >= 200:
+        return "Cisco/Network Device"
+    elif ttl >= 100:
+        return "Windows"
+    elif ttl >= 50:
+        return "Linux/Unix"
+    else:
+        return "Unknown"
