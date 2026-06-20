@@ -285,3 +285,45 @@ def fingerprint_os(ttl: int) -> str:
         return "Linux/Unix"
     else:
         return "Unknown"
+
+
+def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> dict[str, str]:
+    """Analyze HTTP headers from a web service.
+    
+    Args:
+        host: Target hostname or IP address
+        port: HTTP port (default: 80)
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        Dictionary mapping header names to values
+    """
+    headers = {}
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.sendall(b"HEAD / HTTP/1.1\r\nHost: " + host.encode() + b"\r\nConnection: close\r\n\r\n")
+            response = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+        
+        response_text = response.decode("utf-8", errors="ignore")
+        lines = response_text.split("\r\n")
+        
+        # Parse status line
+        if lines:
+            headers["Status"] = lines[0]
+        
+        # Parse headers
+        for line in lines[1:]:
+            if ": " in line:
+                key, value = line.split(": ", 1)
+                headers[key] = value
+            elif line == "":
+                break
+        
+        return headers
+    except Exception:
+        return {}

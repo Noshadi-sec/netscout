@@ -11,6 +11,7 @@ from netscout.scanner import (
     grab_banner_concurrent,
     get_ttl,
     fingerprint_os,
+    analyze_http_headers,
 )
 from netscout.resolver import resolve, reverse_lookup, resolve_all
 from netscout.utils import port_to_service, is_valid_ip
@@ -102,6 +103,34 @@ def main():
         help="ICMP timeout in seconds (default: 2.0)",
     )
 
+    # HTTP header analysis subcommand
+    http_parser = subparsers.add_parser(
+        "http",
+        help="Analyze HTTP headers from a web service",
+    )
+    http_parser.add_argument(
+        "host",
+        help="Target hostname or IP address",
+    )
+    http_parser.add_argument(
+        "--port",
+        type=int,
+        default=80,
+        help="HTTP port (default: 80)",
+    )
+    http_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=2.0,
+        help="Connection timeout in seconds (default: 2.0)",
+    )
+    http_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "scan":
@@ -112,6 +141,8 @@ def main():
         _handle_reverse(args)
     elif args.command == "fingerprint":
         _handle_fingerprint(args)
+    elif args.command == "http":
+        _handle_http(args)
     else:
         parser.print_help()
         sys.exit(1)
@@ -288,6 +319,36 @@ def _handle_fingerprint(args):
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def _handle_http(args):
+    """Handle the http subcommand."""
+    host = args.host
+
+    # Validate host
+    if not is_valid_ip(host):
+        resolved = resolve(host)
+        if not resolved:
+            print(f"Error: Could not resolve {host}", file=sys.stderr)
+            sys.exit(1)
+        host = resolved
+        if getattr(args, "output", "text") == "text":
+            print(f"Resolved {args.host} to {host}")
+
+    output_format = getattr(args, "output", "text")
+    print(f"Analyzing HTTP headers from {host}:{args.port}...")
+    headers = analyze_http_headers(host, port=args.port, timeout=args.timeout)
+
+    if not headers:
+        print(f"Error: Could not retrieve headers from {host}:{args.port}", file=sys.stderr)
+        sys.exit(1)
+
+    if output_format == "json":
+        print(json.dumps(headers, indent=2))
+    else:
+        print(f"\nHTTP Headers from {host}:{args.port}:")
+        for key, value in headers.items():
+            print(f"  {key}: {value}")
 
 
 if __name__ == "__main__":
