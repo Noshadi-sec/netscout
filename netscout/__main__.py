@@ -82,10 +82,22 @@ def main():
         action="store_true",
         help="Show all IP addresses associated with hostname",
     )
+    resolve_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=3.0,
+        help="DNS resolution timeout in seconds (default: 3.0)",
+    )
 
     # Reverse lookup subcommand
     reverse_parser = subparsers.add_parser("reverse", help="Reverse DNS lookup")
     reverse_parser.add_argument("ip", help="IP address to look up")
+    reverse_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=3.0,
+        help="DNS lookup timeout in seconds (default: 3.0)",
+    )
 
     # Fingerprint subcommand
     fingerprint_parser = subparsers.add_parser(
@@ -154,7 +166,7 @@ def _handle_scan(args):
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host)
+        resolved = resolve(host, timeout=3.0)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
@@ -258,9 +270,10 @@ def _handle_scan(args):
 def _handle_resolve(args):
     """Handle the resolve subcommand."""
     hostname = args.hostname
+    timeout = getattr(args, "timeout", 3.0)
 
     if args.all:
-        ips = resolve_all(hostname)
+        ips = resolve_all(hostname, timeout=timeout)
         if ips:
             print(f"IP addresses for {hostname}:")
             for ip in ips:
@@ -269,7 +282,7 @@ def _handle_resolve(args):
             print(f"Error: Could not resolve {hostname}", file=sys.stderr)
             sys.exit(1)
     else:
-        ip = resolve(hostname)
+        ip = resolve(hostname, timeout=timeout)
         if ip:
             print(f"{hostname} -> {ip}")
         else:
@@ -280,12 +293,13 @@ def _handle_resolve(args):
 def _handle_reverse(args):
     """Handle the reverse subcommand."""
     ip = args.ip
+    timeout = getattr(args, "timeout", 3.0)
 
     if not is_valid_ip(ip):
         print(f"Error: {ip} is not a valid IP address", file=sys.stderr)
         sys.exit(1)
 
-    hostname = reverse_lookup(ip)
+    hostname = reverse_lookup(ip, timeout=timeout)
     if hostname:
         print(f"{ip} -> {hostname}")
     else:
@@ -298,7 +312,7 @@ def _handle_fingerprint(args):
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host)
+        resolved = resolve(host, timeout=3.0)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
@@ -327,7 +341,7 @@ def _handle_http(args):
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host)
+        resolved = resolve(host, timeout=3.0)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
