@@ -305,8 +305,10 @@ def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> Opt
             
             headers = {}
             for line in lines[1:]:  # Skip status line
-                if not line or not ":" in line:
+                if not line:
                     break
+                if ":" not in line:
+                    continue
                 key, value = line.split(":", 1)
                 headers[key.strip()] = value.strip()
             

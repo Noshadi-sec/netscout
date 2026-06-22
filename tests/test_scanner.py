@@ -49,15 +49,15 @@ class TestScanner(unittest.TestCase):
         self.assertIsInstance(result, (str, type(None)))
 
     def test_grab_banner_concurrent_returns_dict(self):
-        """Test grab_banner_concurrent returns a dictionary."""
+        """Test grab_banner_concurrent returns a dictionary with correct types."""
         result = grab_banner_concurrent("localhost", [80, 443], timeout=1.0, max_workers=2)
         self.assertIsInstance(result, dict)
-        # All keys should be integers
+        # All keys should be integers (port numbers)
         for key in result.keys():
             self.assertIsInstance(key, int)
-        # All values should be strings
+        # All values should be either strings or None (Optional[str])
         for value in result.values():
-            self.assertIsInstance(value, str)
+            self.assertIsInstance(value, (str, type(None)))
 
     def test_grab_banner_concurrent_empty_ports(self):
         """Test grab_banner_concurrent with empty port list."""
