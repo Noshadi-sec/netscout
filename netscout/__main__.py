@@ -14,7 +14,7 @@ from netscout.scanner import (
     analyze_http_headers,
 )
 from netscout.resolver import resolve, reverse_lookup, resolve_all
-from netscout.utils import port_to_service, is_valid_ip
+from netscout.utils import port_to_service, is_valid_ip, validate_port_range
 
 
 def main():
@@ -175,24 +175,11 @@ def _handle_scan(args):
             print(f"Resolved {args.host} to {host}")
 
     # Parse port specification
-    if "-" in args.ports:
-        parts = args.ports.split("-")
-        if len(parts) != 2:
-            print(f"Error: Invalid port range {args.ports}", file=sys.stderr)
-            sys.exit(1)
-        try:
-            start, end = int(parts[0]), int(parts[1])
-        except ValueError:
-            print(f"Error: Invalid port range {args.ports}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # Single port or comma-separated list
-        try:
-            ports = [int(p.strip()) for p in args.ports.split(",")]
-            start, end = min(ports), max(ports)
-        except ValueError:
-            print(f"Error: Invalid port specification {args.ports}", file=sys.stderr)
-            sys.exit(1)
+    try:
+        start, end = validate_port_range(args.ports)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     protocol = getattr(args, "protocol", "tcp")
     output_format = getattr(args, "output", "text")
