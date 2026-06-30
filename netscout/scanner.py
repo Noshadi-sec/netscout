@@ -169,6 +169,9 @@ def scan_udp_range_concurrent(
 def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
     """Attempt to grab the service banner from an open port.
     
+    Tries multiple approaches: first a simple socket read for immediate responses,
+    then HTTP-style probes for web services.
+    
     Args:
         host: Target hostname or IP address
         port: Port number to grab banner from
@@ -180,9 +183,26 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
     sock = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
-        sock.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
-        banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
-        return banner if banner else None
+        sock.settimeout(timeout)
+        
+        # First try: read raw response (for services that immediately send banners)
+        try:
+            banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
+            if banner:
+                return banner
+        except (socket.timeout, OSError):
+            pass
+        
+        # Second try: send HTTP-style request
+        try:
+            sock.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
+            banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
+            if banner:
+                return banner
+        except (socket.timeout, OSError):
+            pass
+        
+        return None
     except (socket.timeout, ConnectionRefusedError, OSError):
         return None
     finally:
