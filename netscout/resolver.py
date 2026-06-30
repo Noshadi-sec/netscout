@@ -15,14 +15,17 @@ def resolve(hostname: str, timeout: float = 3.0) -> Optional[str]:
         IPv4 address as string, or None if resolution fails
     """
     try:
-        # Set socket timeout before resolution
+        # Use getaddrinfo which properly respects timeout on most systems
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(timeout)
         try:
-            return socket.gethostbyname(hostname)
+            results = socket.getaddrinfo(hostname, None, socket.AF_INET)
+            if results:
+                return results[0][4][0]
+            return None
         finally:
             socket.setdefaulttimeout(old_timeout)
-    except (socket.gaierror, socket.timeout):
+    except (socket.gaierror, socket.timeout, OSError):
         return None
 
 
@@ -45,7 +48,7 @@ def resolve_all(hostname: str, timeout: float = 3.0) -> list[str]:
             return list({r[4][0] for r in results})
         finally:
             socket.setdefaulttimeout(old_timeout)
-    except (socket.gaierror, socket.timeout):
+    except (socket.gaierror, socket.timeout, OSError):
         return []
 
 
@@ -67,5 +70,5 @@ def reverse_lookup(ip: str, timeout: float = 3.0) -> Optional[str]:
             return socket.gethostbyaddr(ip)[0]
         finally:
             socket.setdefaulttimeout(old_timeout)
-    except (socket.herror, socket.timeout):
+    except (socket.herror, socket.timeout, OSError):
         return None

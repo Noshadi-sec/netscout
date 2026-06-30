@@ -73,6 +73,12 @@ def main():
         action="store_true",
         help="Suppress progress bars",
     )
+    scan_parser.add_argument(
+        "--dns-timeout",
+        type=float,
+        default=3.0,
+        help="DNS resolution timeout in seconds (default: 3.0)",
+    )
 
     # Resolve subcommand
     resolve_parser = subparsers.add_parser("resolve", help="Resolve hostname to IP")
@@ -114,6 +120,12 @@ def main():
         default=2.0,
         help="ICMP timeout in seconds (default: 2.0)",
     )
+    fingerprint_parser.add_argument(
+        "--dns-timeout",
+        type=float,
+        default=3.0,
+        help="DNS resolution timeout in seconds (default: 3.0)",
+    )
 
     # HTTP header analysis subcommand
     http_parser = subparsers.add_parser(
@@ -142,6 +154,12 @@ def main():
         default="text",
         help="Output format (default: text)",
     )
+    http_parser.add_argument(
+        "--dns-timeout",
+        type=float,
+        default=3.0,
+        help="DNS resolution timeout in seconds (default: 3.0)",
+    )
 
     args = parser.parse_args()
 
@@ -163,10 +181,11 @@ def main():
 def _handle_scan(args):
     """Handle the scan subcommand."""
     host = args.host
+    dns_timeout = getattr(args, "dns_timeout", 3.0)
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host, timeout=3.0)
+        resolved = resolve(host, timeout=dns_timeout)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
@@ -296,10 +315,11 @@ def _handle_reverse(args):
 def _handle_fingerprint(args):
     """Handle the fingerprint subcommand."""
     host = args.host
+    dns_timeout = getattr(args, "dns_timeout", 3.0)
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host, timeout=3.0)
+        resolved = resolve(host, timeout=dns_timeout)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
@@ -325,10 +345,11 @@ def _handle_fingerprint(args):
 def _handle_http(args):
     """Handle the http subcommand."""
     host = args.host
+    dns_timeout = getattr(args, "dns_timeout", 3.0)
 
     # Validate host
     if not is_valid_ip(host):
-        resolved = resolve(host, timeout=3.0)
+        resolved = resolve(host, timeout=dns_timeout)
         if not resolved:
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
