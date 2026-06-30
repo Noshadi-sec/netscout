@@ -167,14 +167,30 @@ def scan_udp_range_concurrent(
 
 
 def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
-    """Attempt to grab the service banner from an open port."""
+    """Attempt to grab the service banner from an open port.
+    
+    Args:
+        host: Target hostname or IP address
+        port: Port number to grab banner from
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        Banner string, or None if unable to retrieve
+    """
+    sock = None
     try:
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            sock.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
-            banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
-            return banner if banner else None
-    except Exception:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
+        banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
+        return banner if banner else None
+    except (socket.timeout, ConnectionRefusedError, OSError):
         return None
+    finally:
+        if sock:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
 
 def grab_banner_concurrent(
@@ -283,35 +299,44 @@ def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> Opt
     Returns:
         Dictionary of HTTP headers, or None if unable to retrieve
     """
+    sock = None
     try:
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            # Send HTTP GET request
-            request = f"GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-            sock.sendall(request.encode())
-            
-            response = b""
-            while True:
-                try:
-                    chunk = sock.recv(4096)
-                    if not chunk:
-                        break
-                    response += chunk
-                except socket.timeout:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.settimeout(timeout)
+        
+        # Send HTTP GET request
+        request = f"GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+        sock.sendall(request.encode())
+        
+        response = b""
+        while True:
+            try:
+                chunk = sock.recv(4096)
+                if not chunk:
                     break
-            
-            # Parse headers from response
-            response_str = response.decode("utf-8", errors="ignore")
-            lines = response_str.split("\r\n")
-            
-            headers = {}
-            for line in lines[1:]:  # Skip status line
-                if not line:
-                    break
-                if ":" not in line:
-                    continue
-                key, value = line.split(":", 1)
-                headers[key.strip()] = value.strip()
-            
-            return headers if headers else None
-    except Exception:
+                response += chunk
+            except socket.timeout:
+                break
+        
+        # Parse headers from response
+        response_str = response.decode("utf-8", errors="ignore")
+        lines = response_str.split("\r\n")
+        
+        headers = {}
+        for line in lines[1:]:  # Skip status line
+            if not line:
+                break
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            headers[key.strip()] = value.strip()
+        
+        return headers if headers else None
+    except (socket.timeout, ConnectionRefusedError, OSError):
         return None
+    finally:
+        if sock:
+            try:
+                sock.close()
+            except OSError:
+                pass
