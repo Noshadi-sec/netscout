@@ -10,11 +10,29 @@ COMMON_PORTS = {
     443: "HTTPS", 445: "SMB", 3306: "MySQL", 3389: "RDP",
     5432: "PostgreSQL", 6379: "Redis", 8080: "HTTP-Alt",
     8443: "HTTPS-Alt", 27017: "MongoDB",
+    # Additional common services
+    1433: "MSSQL", 3128: "Squid", 5900: "VNC", 5984: "CouchDB",
+    6389: "Memcached", 7001: "Cassandra", 8000: "HTTP-Alt",
+    8001: "HTTP-Alt", 8008: "HTTP", 8888: "HTTP-Alt",
+    9000: "PHP-FPM", 9200: "Elasticsearch", 9300: "Elasticsearch",
+    11211: "Memcached", 27015: "Steam", 50000: "SAP",
+    # Uncommon but important
+    135: "RPC", 139: "NetBIOS", 161: "SNMP", 162: "SNMP-Trap",
+    389: "LDAP", 636: "LDAPS", 873: "Rsync", 993: "IMAPS",
+    995: "POP3S", 1521: "Oracle", 2049: "NFS", 3690: "SVN",
+    4369: "EPMD", 5060: "SIP", 5061: "SIP-TLS", 5432: "PostgreSQL",
 }
 
 
 def port_to_service(port: int) -> str:
-    """Return the common service name for a well-known port."""
+    """Return the common service name for a well-known port.
+    
+    Args:
+        port: Port number to look up
+    
+    Returns:
+        Service name string, or 'unknown' if not recognized
+    """
     return COMMON_PORTS.get(port, "unknown")
 
 
@@ -60,14 +78,31 @@ def validate_port_range(port_spec: str) -> Tuple[int, int]:
 
 
 def expand_cidr(cidr: str) -> Iterator[str]:
-    """Yield all host IP addresses in a CIDR block."""
+    """Yield all host IP addresses in a CIDR block.
+    
+    Args:
+        cidr: CIDR notation string (e.g., '192.168.1.0/24')
+    
+    Yields:
+        IP address strings
+    
+    Raises:
+        ValueError: If CIDR notation is invalid
+    """
     network = ipaddress.ip_network(cidr, strict=False)
     for host in network.hosts():
         yield str(host)
 
 
 def is_valid_ip(address: str) -> bool:
-    """Return True if address is a valid IPv4 or IPv6 address."""
+    """Return True if address is a valid IPv4 or IPv6 address.
+    
+    Args:
+        address: IP address string to validate
+    
+    Returns:
+        True if valid IP address, False otherwise
+    """
     try:
         ipaddress.ip_address(address)
         return True
