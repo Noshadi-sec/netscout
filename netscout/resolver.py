@@ -1,7 +1,26 @@
 """DNS resolution utilities."""
 
 import socket
-from typing import Optional
+from contextlib import contextmanager
+from typing import Generator, Optional
+
+
+@contextmanager
+def _socket_timeout(timeout: float) -> Generator[None, None, None]:
+    """Context manager to temporarily set socket timeout.
+    
+    Args:
+        timeout: Timeout in seconds to apply
+    
+    Yields:
+        None
+    """
+    old_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(timeout)
+    try:
+        yield
+    finally:
+        socket.setdefaulttimeout(old_timeout)
 
 
 def resolve(hostname: str, timeout: float = 3.0) -> Optional[str]:
@@ -15,16 +34,11 @@ def resolve(hostname: str, timeout: float = 3.0) -> Optional[str]:
         IPv4 address as string, or None if resolution fails
     """
     try:
-        # Use getaddrinfo which properly respects timeout on most systems
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(timeout)
-        try:
+        with _socket_timeout(timeout):
             results = socket.getaddrinfo(hostname, None, socket.AF_INET)
             if results:
                 return results[0][4][0]
             return None
-        finally:
-            socket.setdefaulttimeout(old_timeout)
     except (socket.gaierror, socket.timeout, OSError):
         return None
 
@@ -40,14 +54,9 @@ def resolve_all(hostname: str, timeout: float = 3.0) -> list[str]:
         List of IP addresses, or empty list if resolution fails
     """
     try:
-        # Set socket timeout before resolution
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(timeout)
-        try:
+        with _socket_timeout(timeout):
             results = socket.getaddrinfo(hostname, None)
             return list({r[4][0] for r in results})
-        finally:
-            socket.setdefaulttimeout(old_timeout)
     except (socket.gaierror, socket.timeout, OSError):
         return []
 
@@ -63,12 +72,7 @@ def reverse_lookup(ip: str, timeout: float = 3.0) -> Optional[str]:
         Hostname as string, or None if lookup fails
     """
     try:
-        # Set socket timeout before lookup
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(timeout)
-        try:
+        with _socket_timeout(timeout):
             return socket.gethostbyaddr(ip)[0]
-        finally:
-            socket.setdefaulttimeout(old_timeout)
     except (socket.herror, socket.timeout, OSError):
         return None
