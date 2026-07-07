@@ -4,6 +4,20 @@ import socket
 from typing import Optional
 
 
+def _validate_timeout(timeout: float, name: str = "timeout") -> None:
+    """Validate that timeout is a positive number.
+    
+    Args:
+        timeout: Timeout value to validate
+        name: Name of parameter for error messages
+    
+    Raises:
+        ValueError: If timeout is not positive
+    """
+    if timeout <= 0:
+        raise ValueError(f"{name} must be positive, got {timeout}")
+
+
 def resolve(hostname: str, timeout: float = 3.0) -> Optional[str]:
     """Resolve a hostname to its IPv4 address.
     
@@ -13,7 +27,11 @@ def resolve(hostname: str, timeout: float = 3.0) -> Optional[str]:
     
     Returns:
         IPv4 address as string, or None if resolution fails
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     try:
         # Use getaddrinfo which properly respects timeout on most systems
         old_timeout = socket.getdefaulttimeout()
@@ -38,7 +56,11 @@ def resolve_all(hostname: str, timeout: float = 3.0) -> list[str]:
     
     Returns:
         List of IP addresses, or empty list if resolution fails
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     try:
         # Set socket timeout before resolution
         old_timeout = socket.getdefaulttimeout()
@@ -61,7 +83,11 @@ def reverse_lookup(ip: str, timeout: float = 3.0) -> Optional[str]:
     
     Returns:
         Hostname as string, or None if lookup fails
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     try:
         # Set socket timeout before lookup
         old_timeout = socket.getdefaulttimeout()

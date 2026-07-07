@@ -12,8 +12,23 @@ except ImportError:
     HAS_TQDM = False
 
 
+def _validate_timeout(timeout: float, name: str = "timeout") -> None:
+    """Validate that timeout is a positive number.
+    
+    Args:
+        timeout: Timeout value to validate
+        name: Name of parameter for error messages
+    
+    Raises:
+        ValueError: If timeout is not positive
+    """
+    if timeout <= 0:
+        raise ValueError(f"{name} must be positive, got {timeout}")
+
+
 def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if the given TCP port is open on host."""
+    _validate_timeout(timeout)
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -23,6 +38,7 @@ def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
 
 def scan_range(host: str, start: int, end: int, timeout: float = 1.0) -> list[int]:
     """Scan a range of ports and return the open ones."""
+    _validate_timeout(timeout)
     open_ports = []
     for port in range(start, end + 1):
         if scan_port(host, port, timeout):
@@ -52,7 +68,14 @@ def scan_range_concurrent(
     
     Returns:
         Sorted list of open ports
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
+    if rate_limit < 0:
+        raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
+    
     open_ports = []
     ports = list(range(start, end + 1))
 
@@ -91,6 +114,7 @@ def scan_udp_port(host: str, port: int, timeout: float = 1.0) -> bool:
     
     Note: UDP scanning is unreliable as ICMP filters may prevent responses.
     """
+    _validate_timeout(timeout)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(timeout)
@@ -103,6 +127,7 @@ def scan_udp_port(host: str, port: int, timeout: float = 1.0) -> bool:
 
 def scan_udp_range(host: str, start: int, end: int, timeout: float = 1.0) -> list[int]:
     """Scan a range of UDP ports and return the open ones."""
+    _validate_timeout(timeout)
     open_ports = []
     for port in range(start, end + 1):
         if scan_udp_port(host, port, timeout):
@@ -132,7 +157,14 @@ def scan_udp_range_concurrent(
     
     Returns:
         Sorted list of open ports
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
+    if rate_limit < 0:
+        raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
+    
     open_ports = []
     ports = list(range(start, end + 1))
 
@@ -179,7 +211,11 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
     
     Returns:
         Banner string, or None if unable to retrieve
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     sock = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
@@ -233,7 +269,14 @@ def grab_banner_concurrent(
     
     Returns:
         Dictionary mapping port numbers to their banners (or None)
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
+    if rate_limit < 0:
+        raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
+    
     banners = {}
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -275,7 +318,11 @@ def get_ttl(host: str, timeout: float = 2.0) -> Optional[int]:
     
     Returns:
         TTL value as integer, or None if unable to retrieve
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     try:
         # Use ICMP echo (ping) to get TTL
         with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
@@ -318,7 +365,11 @@ def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> Opt
     
     Returns:
         Dictionary of HTTP headers, or None if unable to retrieve
+    
+    Raises:
+        ValueError: If timeout is not positive
     """
+    _validate_timeout(timeout)
     sock = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
