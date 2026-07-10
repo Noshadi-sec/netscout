@@ -10,7 +10,76 @@ from netscout.scanner import (
     scan_udp_port,
     scan_udp_range,
     scan_udp_range_concurrent,
+    fingerprint_os,
 )
+
+
+class TestScannerValidation(unittest.TestCase):
+    """Test input validation for scanner functions."""
+
+    def test_scan_port_invalid_port_negative(self):
+        """Test scan_port rejects negative port numbers."""
+        with self.assertRaises(ValueError):
+            scan_port("localhost", -1, timeout=0.5)
+
+    def test_scan_port_invalid_port_zero(self):
+        """Test scan_port rejects port 0."""
+        with self.assertRaises(ValueError):
+            scan_port("localhost", 0, timeout=0.5)
+
+    def test_scan_port_invalid_port_too_high(self):
+        """Test scan_port rejects port > 65535."""
+        with self.assertRaises(ValueError):
+            scan_port("localhost", 65536, timeout=0.5)
+
+    def test_scan_port_invalid_port_type(self):
+        """Test scan_port rejects non-integer port."""
+        with self.assertRaises(TypeError):
+            scan_port("localhost", "80", timeout=0.5)
+
+    def test_scan_port_invalid_timeout(self):
+        """Test scan_port rejects non-positive timeout."""
+        with self.assertRaises(ValueError):
+            scan_port("localhost", 80, timeout=0)
+        with self.assertRaises(ValueError):
+            scan_port("localhost", 80, timeout=-1)
+
+    def test_scan_range_invalid_port_start(self):
+        """Test scan_range rejects invalid start port."""
+        with self.assertRaises(ValueError):
+            scan_range("localhost", -1, 100, timeout=0.5)
+        with self.assertRaises(ValueError):
+            scan_range("localhost", 65536, 65540, timeout=0.5)
+
+    def test_scan_range_invalid_port_end(self):
+        """Test scan_range rejects invalid end port."""
+        with self.assertRaises(ValueError):
+            scan_range("localhost", 1, 65536, timeout=0.5)
+
+    def test_scan_range_start_greater_than_end(self):
+        """Test scan_range rejects start > end."""
+        with self.assertRaises(ValueError):
+            scan_range("localhost", 100, 50, timeout=0.5)
+
+    def test_scan_range_concurrent_invalid_rate_limit(self):
+        """Test scan_range_concurrent rejects negative rate_limit."""
+        with self.assertRaises(ValueError):
+            scan_range_concurrent("localhost", 1, 10, timeout=0.5, rate_limit=-0.1)
+
+    def test_scan_udp_port_invalid_port(self):
+        """Test scan_udp_port rejects invalid port."""
+        with self.assertRaises(ValueError):
+            scan_udp_port("localhost", 65536, timeout=0.5)
+
+    def test_grab_banner_invalid_port(self):
+        """Test grab_banner rejects invalid port."""
+        with self.assertRaises(ValueError):
+            grab_banner("localhost", 0, timeout=1.0)
+
+    def test_fingerprint_os_invalid_ttl_type(self):
+        """Test fingerprint_os rejects non-integer ttl."""
+        with self.assertRaises(TypeError):
+            fingerprint_os("255")
 
 
 class TestScanner(unittest.TestCase):

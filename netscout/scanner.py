@@ -26,9 +26,40 @@ def _validate_timeout(timeout: float, name: str = "timeout") -> None:
         raise ValueError(f"{name} must be positive, got {timeout}")
 
 
+def _validate_port(port: int, name: str = "port") -> None:
+    """Validate that port is in valid range (1-65535).
+    
+    Args:
+        port: Port number to validate
+        name: Name of parameter for error messages
+    
+    Raises:
+        ValueError: If port is outside valid range
+        TypeError: If port is not an integer
+    """
+    if not isinstance(port, int):
+        raise TypeError(f"{name} must be an integer, got {type(port).__name__}")
+    if port < 1 or port > 65535:
+        raise ValueError(f"{name} must be in range 1-65535, got {port}")
+
+
 def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
-    """Return True if the given TCP port is open on host."""
+    """Return True if the given TCP port is open on host.
+    
+    Args:
+        host: Target hostname or IP address
+        port: Port number (1-65535)
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        True if port is open, False otherwise
+    
+    Raises:
+        ValueError: If port is invalid
+        TypeError: If port is not an integer
+    """
     _validate_timeout(timeout)
+    _validate_port(port)
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -37,8 +68,27 @@ def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
 
 
 def scan_range(host: str, start: int, end: int, timeout: float = 1.0) -> list[int]:
-    """Scan a range of ports and return the open ones."""
+    """Scan a range of ports and return the open ones.
+    
+    Args:
+        host: Target hostname or IP address
+        start: Starting port number
+        end: Ending port number (inclusive)
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        List of open ports
+    
+    Raises:
+        ValueError: If ports are invalid
+        TypeError: If ports are not integers
+    """
     _validate_timeout(timeout)
+    _validate_port(start, "start port")
+    _validate_port(end, "end port")
+    if start > end:
+        raise ValueError(f"start port {start} cannot be greater than end port {end}")
+    
     open_ports = []
     for port in range(start, end + 1):
         if scan_port(host, port, timeout):
@@ -70,9 +120,14 @@ def scan_range_concurrent(
         Sorted list of open ports
     
     Raises:
-        ValueError: If timeout is not positive
+        ValueError: If timeout, ports, or rate_limit are invalid
+        TypeError: If ports are not integers
     """
     _validate_timeout(timeout)
+    _validate_port(start, "start port")
+    _validate_port(end, "end port")
+    if start > end:
+        raise ValueError(f"start port {start} cannot be greater than end port {end}")
     if rate_limit < 0:
         raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
     
@@ -113,8 +168,21 @@ def scan_udp_port(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if the given UDP port is open on host.
     
     Note: UDP scanning is unreliable as ICMP filters may prevent responses.
+    
+    Args:
+        host: Target hostname or IP address
+        port: Port number (1-65535)
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        True if port is open, False otherwise
+    
+    Raises:
+        ValueError: If port is invalid
+        TypeError: If port is not an integer
     """
     _validate_timeout(timeout)
+    _validate_port(port)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(timeout)
@@ -126,8 +194,27 @@ def scan_udp_port(host: str, port: int, timeout: float = 1.0) -> bool:
 
 
 def scan_udp_range(host: str, start: int, end: int, timeout: float = 1.0) -> list[int]:
-    """Scan a range of UDP ports and return the open ones."""
+    """Scan a range of UDP ports and return the open ones.
+    
+    Args:
+        host: Target hostname or IP address
+        start: Starting port number
+        end: Ending port number (inclusive)
+        timeout: Connection timeout in seconds
+    
+    Returns:
+        List of open ports
+    
+    Raises:
+        ValueError: If ports are invalid
+        TypeError: If ports are not integers
+    """
     _validate_timeout(timeout)
+    _validate_port(start, "start port")
+    _validate_port(end, "end port")
+    if start > end:
+        raise ValueError(f"start port {start} cannot be greater than end port {end}")
+    
     open_ports = []
     for port in range(start, end + 1):
         if scan_udp_port(host, port, timeout):
@@ -159,9 +246,14 @@ def scan_udp_range_concurrent(
         Sorted list of open ports
     
     Raises:
-        ValueError: If timeout is not positive
+        ValueError: If timeout, ports, or rate_limit are invalid
+        TypeError: If ports are not integers
     """
     _validate_timeout(timeout)
+    _validate_port(start, "start port")
+    _validate_port(end, "end port")
+    if start > end:
+        raise ValueError(f"start port {start} cannot be greater than end port {end}")
     if rate_limit < 0:
         raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
     
@@ -213,9 +305,11 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
         Banner string, or None if unable to retrieve
     
     Raises:
-        ValueError: If timeout is not positive
+        ValueError: If timeout or port are invalid
+        TypeError: If port is not an integer
     """
     _validate_timeout(timeout)
+    _validate_port(port)
     sock = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
@@ -271,7 +365,7 @@ def grab_banner_concurrent(
         Dictionary mapping port numbers to their banners (or None)
     
     Raises:
-        ValueError: If timeout is not positive
+        ValueError: If timeout or rate_limit are invalid
     """
     _validate_timeout(timeout)
     if rate_limit < 0:
@@ -344,7 +438,12 @@ def fingerprint_os(ttl: int) -> str:
     
     Returns:
         Estimated OS name
+    
+    Raises:
+        TypeError: If ttl is not an integer
     """
+    if not isinstance(ttl, int):
+        raise TypeError(f"ttl must be an integer, got {type(ttl).__name__}")
     if ttl >= 200:
         return "Linux/Unix"
     elif ttl >= 100:
@@ -367,9 +466,11 @@ def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> Opt
         Dictionary of HTTP headers, or None if unable to retrieve
     
     Raises:
-        ValueError: If timeout is not positive
+        ValueError: If timeout or port are invalid
+        TypeError: If port is not an integer
     """
     _validate_timeout(timeout)
+    _validate_port(port)
     sock = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
