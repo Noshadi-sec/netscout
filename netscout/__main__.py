@@ -64,6 +64,12 @@ def main():
         help="Output format (default: text)",
     )
     scan_parser.add_argument(
+        "--output-file",
+        type=str,
+        default=None,
+        help="Save output to file (optional)",
+    )
+    scan_parser.add_argument(
         "--banners",
         action="store_true",
         help="Attempt to grab service banners from open ports (TCP only)",
@@ -94,6 +100,12 @@ def main():
         default=3.0,
         help="DNS resolution timeout in seconds (default: 3.0)",
     )
+    resolve_parser.add_argument(
+        "--output-file",
+        type=str,
+        default=None,
+        help="Save output to file (optional)",
+    )
 
     # Reverse lookup subcommand
     reverse_parser = subparsers.add_parser("reverse", help="Reverse DNS lookup")
@@ -103,6 +115,12 @@ def main():
         type=float,
         default=3.0,
         help="DNS lookup timeout in seconds (default: 3.0)",
+    )
+    reverse_parser.add_argument(
+        "--output-file",
+        type=str,
+        default=None,
+        help="Save output to file (optional)",
     )
 
     # Fingerprint subcommand
@@ -125,6 +143,12 @@ def main():
         type=float,
         default=3.0,
         help="DNS resolution timeout in seconds (default: 3.0)",
+    )
+    fingerprint_parser.add_argument(
+        "--output-file",
+        type=str,
+        default=None,
+        help="Save output to file (optional)",
     )
 
     # HTTP header analysis subcommand
@@ -155,6 +179,12 @@ def main():
         help="Output format (default: text)",
     )
     http_parser.add_argument(
+        "--output-file",
+        type=str,
+        default=None,
+        help="Save output to file (optional)",
+    )
+    http_parser.add_argument(
         "--dns-timeout",
         type=float,
         default=3.0,
@@ -178,6 +208,28 @@ def main():
         sys.exit(1)
 
 
+def _write_output(output: str, output_file: str = None) -> None:
+    """Write output to stdout or file.
+    
+    Args:
+        output: Output string to write
+        output_file: Optional file path to write to (None for stdout)
+    
+    Raises:
+        IOError: If unable to write to file
+    """
+    if output_file:
+        try:
+            with open(output_file, "w") as f:
+                f.write(output)
+            print(f"Output saved to {output_file}", file=sys.stderr)
+        except IOError as e:
+            print(f"Error: Could not write to {output_file}: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print(output)
+
+
 def _handle_scan(args):
     """Handle the scan subcommand."""
     host = args.host
@@ -190,7 +242,7 @@ def _handle_scan(args):
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
         host = resolved
-        if getattr(args, "output", "text") == "text":
+        if getattr(args, "output", "text") == "text" and not getattr(args, "output_file"):
             print(f"Resolved {args.host} to {host}")
 
     # Parse port specification
@@ -202,12 +254,13 @@ def _handle_scan(args):
 
     protocol = getattr(args, "protocol", "tcp")
     output_format = getattr(args, "output", "text")
+    output_file = getattr(args, "output_file", None)
     grab_banners = getattr(args, "banners", False)
     quiet = getattr(args, "quiet", False)
     rate_limit = getattr(args, "rate_limit", 0.0)
-    show_progress = output_format == "text" and not quiet
+    show_progress = output_format == "text" and not quiet and not output_file
     
-    if output_format == "text" and not quiet:
+    if show_progress:
         print(f"Scanning {host} {protocol.upper()} ports {start}-{end}...")
 
     if protocol == "udp":
@@ -258,48 +311,55 @@ def _handle_scan(args):
                 for port in open_ports
             ]
         }
-        print(json.dumps(result, indent=2))
+        output = json.dumps(result, indent=2)
     else:
         if open_ports:
-            print(f"\nOpen {protocol.upper()} ports on {host}:")
+            lines = [f"Open {protocol.upper()} ports on {host}:"]
             for port in open_ports:
                 service = port_to_service(port)
                 if banners_dict and port in banners_dict:
-                    print(f"  {port:5d} - {service}")
-                    print(f"           Banner: {banners_dict[port][:60]}...")
+                    lines.append(f"  {port:5d} - {service}")
+                    lines.append(f"           Banner: {banners_dict[port][:60]}...")
                 else:
-                    print(f"  {port:5d} - {service}")
+                    lines.append(f"  {port:5d} - {service}")
+            output = "\n".join(lines)
         else:
-            print(f"No open {protocol.upper()} ports found on {host} in range {start}-{end}")
+            output = f"No open {protocol.upper()} ports found on {host} in range {start}-{end}"
+
+    _write_output(output, output_file)
 
 
 def _handle_resolve(args):
     """Handle the resolve subcommand."""
     hostname = args.hostname
     timeout = getattr(args, "timeout", 3.0)
+    output_file = getattr(args, "output_file", None)
 
     if args.all:
         ips = resolve_all(hostname, timeout=timeout)
         if ips:
-            print(f"IP addresses for {hostname}:")
-            for ip in ips:
-                print(f"  {ip}")
+            lines = [f"IP addresses for {hostname}:"]
+            lines.extend([f"  {ip}" for ip in ips])
+            output = "\n".join(lines)
         else:
             print(f"Error: Could not resolve {hostname}", file=sys.stderr)
             sys.exit(1)
     else:
         ip = resolve(hostname, timeout=timeout)
         if ip:
-            print(f"{hostname} -> {ip}")
+            output = f"{hostname} -> {ip}"
         else:
             print(f"Error: Could not resolve {hostname}", file=sys.stderr)
             sys.exit(1)
+
+    _write_output(output, output_file)
 
 
 def _handle_reverse(args):
     """Handle the reverse subcommand."""
     ip = args.ip
     timeout = getattr(args, "timeout", 3.0)
+    output_file = getattr(args, "output_file", None)
 
     if not is_valid_ip(ip):
         print(f"Error: {ip} is not a valid IP address", file=sys.stderr)
@@ -307,15 +367,18 @@ def _handle_reverse(args):
 
     hostname = reverse_lookup(ip, timeout=timeout)
     if hostname:
-        print(f"{ip} -> {hostname}")
+        output = f"{ip} -> {hostname}"
     else:
-        print(f"No reverse DNS record found for {ip}")
+        output = f"No reverse DNS record found for {ip}"
+
+    _write_output(output, output_file)
 
 
 def _handle_fingerprint(args):
     """Handle the fingerprint subcommand."""
     host = args.host
     dns_timeout = getattr(args, "dns_timeout", 3.0)
+    output_file = getattr(args, "output_file", None)
 
     # Validate host
     if not is_valid_ip(host):
@@ -324,15 +387,18 @@ def _handle_fingerprint(args):
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
         host = resolved
-        print(f"Resolved {args.host} to {host}")
+        if not output_file:
+            print(f"Resolved {args.host} to {host}")
 
-    print(f"Attempting OS fingerprinting for {host}...")
+    if not output_file:
+        print(f"Attempting OS fingerprinting for {host}...")
     ttl = get_ttl(host, timeout=args.timeout)
 
     if ttl is not None:
         os_guess = fingerprint_os(ttl)
-        print(f"TTL: {ttl}")
-        print(f"Estimated OS: {os_guess}")
+        lines = [f"TTL: {ttl}", f"Estimated OS: {os_guess}"]
+        output = "\n".join(lines)
+        _write_output(output, output_file)
     else:
         print(
             f"Error: Could not retrieve TTL from {host}",
@@ -346,6 +412,8 @@ def _handle_http(args):
     """Handle the http subcommand."""
     host = args.host
     dns_timeout = getattr(args, "dns_timeout", 3.0)
+    output_format = getattr(args, "output", "text")
+    output_file = getattr(args, "output_file", None)
 
     # Validate host
     if not is_valid_ip(host):
@@ -354,11 +422,11 @@ def _handle_http(args):
             print(f"Error: Could not resolve {host}", file=sys.stderr)
             sys.exit(1)
         host = resolved
-        if getattr(args, "output", "text") == "text":
+        if output_format == "text" and not output_file:
             print(f"Resolved {args.host} to {host}")
 
-    output_format = getattr(args, "output", "text")
-    print(f"Analyzing HTTP headers from {host}:{args.port}...")
+    if not output_file:
+        print(f"Analyzing HTTP headers from {host}:{args.port}...")
     headers = analyze_http_headers(host, port=args.port, timeout=args.timeout)
 
     if not headers:
@@ -366,11 +434,13 @@ def _handle_http(args):
         sys.exit(1)
 
     if output_format == "json":
-        print(json.dumps(headers, indent=2))
+        output = json.dumps(headers, indent=2)
     else:
-        print(f"\nHTTP Headers from {host}:{args.port}:")
-        for key, value in headers.items():
-            print(f"  {key}: {value}")
+        lines = [f"HTTP Headers from {host}:{args.port}:"]
+        lines.extend([f"  {key}: {value}" for key, value in headers.items()])
+        output = "\n".join(lines)
+
+    _write_output(output, output_file)
 
 
 if __name__ == "__main__":
