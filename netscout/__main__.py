@@ -3,6 +3,7 @@
 import argparse
 import sys
 import json
+from netscout import __version__
 from netscout.scanner import (
     scan_port,
     scan_range_concurrent,
@@ -22,6 +23,12 @@ def main():
     parser = argparse.ArgumentParser(
         prog="netscout",
         description="Lightweight network reconnaissance and service discovery toolkit.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"netscout {__version__}",
+        help="Show version information and exit",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
