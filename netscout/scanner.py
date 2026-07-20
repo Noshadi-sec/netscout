@@ -43,6 +43,23 @@ def _validate_port(port: int, name: str = "port") -> None:
         raise ValueError(f"{name} must be in range 1-65535, got {port}")
 
 
+def _validate_host(host: str, name: str = "host") -> None:
+    """Validate that host is a non-empty string.
+    
+    Args:
+        host: Hostname or IP address to validate
+        name: Name of parameter for error messages
+    
+    Raises:
+        TypeError: If host is not a string
+        ValueError: If host is an empty string
+    """
+    if not isinstance(host, str):
+        raise TypeError(f"{name} must be a string, got {type(host).__name__}")
+    if not host:
+        raise ValueError(f"{name} cannot be empty")
+
+
 def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if the given TCP port is open on host.
     
@@ -58,6 +75,7 @@ def scan_port(host: str, port: int, timeout: float = 1.0) -> bool:
         ValueError: If port is invalid
         TypeError: If port is not an integer
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(port)
     try:
@@ -83,6 +101,7 @@ def scan_range(host: str, start: int, end: int, timeout: float = 1.0) -> list[in
         ValueError: If ports are invalid
         TypeError: If ports are not integers
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(start, "start port")
     _validate_port(end, "end port")
@@ -123,6 +142,7 @@ def scan_range_concurrent(
         ValueError: If timeout, ports, or rate_limit are invalid
         TypeError: If ports are not integers
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(start, "start port")
     _validate_port(end, "end port")
@@ -181,6 +201,7 @@ def scan_udp_port(host: str, port: int, timeout: float = 1.0) -> bool:
         ValueError: If port is invalid
         TypeError: If port is not an integer
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(port)
     try:
@@ -209,6 +230,7 @@ def scan_udp_range(host: str, start: int, end: int, timeout: float = 1.0) -> lis
         ValueError: If ports are invalid
         TypeError: If ports are not integers
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(start, "start port")
     _validate_port(end, "end port")
@@ -249,6 +271,7 @@ def scan_udp_range_concurrent(
         ValueError: If timeout, ports, or rate_limit are invalid
         TypeError: If ports are not integers
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(start, "start port")
     _validate_port(end, "end port")
@@ -308,6 +331,7 @@ def grab_banner(host: str, port: int, timeout: float = 2.0) -> Optional[str]:
         ValueError: If timeout or port are invalid
         TypeError: If port is not an integer
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(port)
     sock = None
@@ -367,6 +391,7 @@ def grab_banner_concurrent(
     Raises:
         ValueError: If timeout or rate_limit are invalid
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     if rate_limit < 0:
         raise ValueError(f"rate_limit must be non-negative, got {rate_limit}")
@@ -416,6 +441,7 @@ def get_ttl(host: str, timeout: float = 2.0) -> Optional[int]:
     Raises:
         ValueError: If timeout is not positive
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     try:
         # Use ICMP echo (ping) to get TTL
@@ -469,6 +495,7 @@ def analyze_http_headers(host: str, port: int = 80, timeout: float = 2.0) -> Opt
         ValueError: If timeout or port are invalid
         TypeError: If port is not an integer
     """
+    _validate_host(host)
     _validate_timeout(timeout)
     _validate_port(port)
     sock = None
