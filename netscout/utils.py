@@ -77,6 +77,22 @@ def validate_port_range(port_spec: str) -> Tuple[int, int]:
     return start, end
 
 
+def is_valid_cidr(cidr: str) -> bool:
+    """Return True if cidr is a valid CIDR notation.
+    
+    Args:
+        cidr: CIDR notation string to validate (e.g., '192.168.1.0/24')
+    
+    Returns:
+        True if valid CIDR notation, False otherwise
+    """
+    try:
+        ipaddress.ip_network(cidr, strict=False)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def expand_cidr(cidr: str) -> Iterator[str]:
     """Yield all host IP addresses in a CIDR block.
     
@@ -89,7 +105,16 @@ def expand_cidr(cidr: str) -> Iterator[str]:
     Raises:
         ValueError: If CIDR notation is invalid
     """
-    network = ipaddress.ip_network(cidr, strict=False)
+    if not isinstance(cidr, str):
+        raise TypeError(f"cidr must be a string, got {type(cidr).__name__}")
+    
+    try:
+        network = ipaddress.ip_network(cidr, strict=False)
+    except ValueError as e:
+        raise ValueError(f"Invalid CIDR notation '{cidr}': {e}")
+    except TypeError as e:
+        raise ValueError(f"Invalid CIDR notation '{cidr}': {e}")
+    
     for host in network.hosts():
         yield str(host)
 
