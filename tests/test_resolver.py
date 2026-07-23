@@ -18,6 +18,11 @@ class TestResolver(unittest.TestCase):
         results = resolve_all("localhost")
         self.assertIsInstance(results, list)
 
+    def test_reverse_lookup_localhost(self):
+        hostname = reverse_lookup("127.0.0.1")
+        self.assertIsNotNone(hostname)
+        self.assertIsInstance(hostname, str)
+
 
 if __name__ == "__main__":
     unittest.main()
